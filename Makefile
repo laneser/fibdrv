@@ -9,7 +9,7 @@ PWD := $(shell pwd)
 
 GIT_HOOKS := .git/hooks/applied
 
-all: $(GIT_HOOKS) client
+all: $(GIT_HOOKS) client client_statistic
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 $(GIT_HOOKS):
@@ -25,6 +25,9 @@ unload:
 	sudo rmmod $(TARGET_MODULE) || true >/dev/null
 
 client: client.c
+	$(CC) -o $@ $^
+
+client_statistic: client_statistic.c
 	$(CC) -o $@ $^
 
 PRINTF = env printf

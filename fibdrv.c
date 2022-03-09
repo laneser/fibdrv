@@ -63,13 +63,26 @@ static ssize_t fib_read(struct file *file,
     return (ssize_t) fib_sequence(*offset);
 }
 
-/* write operation is skipped */
+static long long (*fib_methods[1])(long long) = {
+    fib_sequence,
+};
+
+/* write operation
+ * testing mode: buf exists, return 1.
+ * calculating mode:
+ *   size 0 use fib_sequence
+ *   return cost time in ns
+ */
 static ssize_t fib_write(struct file *file,
                          const char *buf,
                          size_t size,
                          loff_t *offset)
 {
-    return 1;
+    if (buf)
+        return 1;
+    ktime_t kt = ktime_get();
+    fib_methods[size](*offset);
+    return (ssize_t) ktime_to_ns(ktime_sub(ktime_get(), kt));
 }
 
 static loff_t fib_device_lseek(struct file *file, loff_t offset, int orig)
