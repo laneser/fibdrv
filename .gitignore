@@ -28,7 +28,6 @@ dkms.conf
 
 # test-oriented
 client
-out
 client_statistic
-plot_input_statistic
-plot_statistic.png
+out*
+plot*

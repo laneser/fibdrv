@@ -35,13 +35,19 @@ PASS_COLOR = \e[32;01m
 NO_COLOR = \e[0m
 pass = $(PRINTF) "$(PASS_COLOR)$1 Passed [-]$(NO_COLOR)\n"
 
+CHECK_METHODS=0 1 2
+
 check: all
 	$(MAKE) unload
 	$(MAKE) load
-	sudo ./client > out
+	for i in $(CHECK_METHODS); do \
+	    sudo ./client $$i > out_$$i ; \
+	done
 	$(MAKE) unload
-	@diff -u out scripts/expected.txt && $(call pass)
-	@scripts/verify.py
+	for i in $(CHECK_METHODS); do \
+	    diff -u out_$$i scripts/expected.txt && $(call pass,Method_$$i) ; \
+	    scripts/verify.py out_$$i; \
+	done
 
 plot: all
 	sh do_measurement.sh

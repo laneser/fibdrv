@@ -19,6 +19,7 @@ make load
 rm -f plot_input_statistic
 sudo taskset -c $CPUID ./client_statistic
 gnuplot scripts/plot-statistic.gp
+gnuplot scripts/plot-statistic-kernel.gp
 make unload
 
 # restore the original system settings

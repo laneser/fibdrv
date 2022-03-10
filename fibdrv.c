@@ -35,6 +35,53 @@ static long long fib_sequence(long long k)
     return f[(k & 1)];
 }
 
+// ref
+// https://chunminchang.github.io/blog/post/calculating-fibonacci-numbers-by-fast-doubling
+static long long fib_fast_doubling(long long n)
+{
+    unsigned int h = 0;
+    for (unsigned int i = n; i; ++h, i >>= 1)
+        ;
+
+    uint64_t a = 0;
+    uint64_t b = 1;
+    for (unsigned int mask = 1 << (h - 1); mask; mask >>= 1) {
+        uint64_t c = a * (2 * b - a);
+        uint64_t d = a * a + b * b;
+        if (mask & n) {
+            a = d;
+            b = c + d;
+        } else {
+            a = c;
+            b = d;
+        }
+    }
+    return a;
+}
+
+
+static long long fib_fast_doubling_clz(long long n)
+{
+    if (n < 2)
+        return n;
+
+    uint64_t a = 0;
+    uint64_t b = 1;
+    for (unsigned int mask = 1 << (32 - __builtin_clzll(n)); mask; mask >>= 1) {
+        uint64_t c = a * (2 * b - a);
+        uint64_t d = a * a + b * b;
+
+        if (mask & n) {
+            a = d;
+            b = c + d;
+        } else {
+            a = c;
+            b = d;
+        }
+    }
+    return a;
+}
+
 static int fib_open(struct inode *inode, struct file *file)
 {
     if (!mutex_trylock(&fib_mutex)) {
@@ -50,24 +97,26 @@ static int fib_release(struct inode *inode, struct file *file)
     return 0;
 }
 
+static long long (*fib_methods[])(long long) = {fib_sequence, fib_fast_doubling,
+                                                fib_fast_doubling_clz};
+
 /* calculate the fibonacci number at given offset */
 static ssize_t fib_read(struct file *file,
                         char *buf,
                         size_t size,
                         loff_t *offset)
 {
-    return (ssize_t) fib_sequence(*offset);
+    if (size >= sizeof(fib_methods) / sizeof(fib_methods[0]))
+        return 0;
+    return (ssize_t) fib_methods[size](*offset);
 }
-
-static long long (*fib_methods[1])(long long) = {
-    fib_sequence,
-};
 
 /* write operation
  * testing mode: buf exists, return 1.
- * calculating mode:
- *   size 0 use fib_sequence
+ * calculating mode: buf is NULL
+ *   size is method number
  *   return cost time in ns
+ *   return 0 if size is out of index
  */
 static ssize_t fib_write(struct file *file,
                          const char *buf,
@@ -76,6 +125,8 @@ static ssize_t fib_write(struct file *file,
 {
     if (buf)
         return 1;
+    if (size >= sizeof(fib_methods) / sizeof(fib_methods[0]))
+        return 0;
     ktime_t kt = ktime_get();
     fib_methods[size](*offset);
     return (ssize_t) ktime_to_ns(ktime_sub(ktime_get(), kt));
